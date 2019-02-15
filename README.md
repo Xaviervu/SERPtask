@@ -23,3 +23,8 @@ The list of airlines can be obtained from: https://api.myjson.com/bins/8d024
  The task was solved usin Kotlin languaje, GSON and Retrofit2 libraries
  CVVM pattern
  
+ 
+UI result 
+https://raw.githubusercontent.com/Xaviervu/SERPtask/master/screenshots/1.png
+
+https://raw.githubusercontent.com/Xaviervu/SERPtask/master/screenshots/2.png
