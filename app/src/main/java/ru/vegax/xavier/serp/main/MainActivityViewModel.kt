@@ -70,7 +70,7 @@ internal class MainActivityViewModel : ViewModel(), OnDataListener {
 
                             if (filterId < 0 || currCompanyId == filterId) { // filter if needed
                                 flights.add(currFlight)
-                                val price = currFlight.price 
+                                val price = currFlight.price
                                 if (price != 0) {
                                     if (theLowestPrice != 0) {
                                         if (price < theLowestPrice) {
