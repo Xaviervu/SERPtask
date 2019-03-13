@@ -7,6 +7,6 @@ class FlightList {
 
     @SerializedName("flights")
     @Expose
-    var flights: List<Flight>? = null
+    lateinit var flights: List<Flight>
 
 }

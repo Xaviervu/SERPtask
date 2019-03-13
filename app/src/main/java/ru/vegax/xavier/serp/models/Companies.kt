@@ -7,6 +7,6 @@ class Companies {
 
     @SerializedName("companies")
     @Expose
-    var companies: List<Company>? = null
+    lateinit var companies: List<Company>
 
 }

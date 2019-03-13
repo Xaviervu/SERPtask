@@ -1,7 +1,7 @@
 package ru.vegax.xavier.serp.main
 
 
-import android.arch.lifecycle.ViewModelProviders
+import android.arch.lifecycle.Observer
 import android.graphics.Rect
 import android.os.Bundle
 import android.support.v4.widget.SwipeRefreshLayout
@@ -9,179 +9,119 @@ import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.util.Log
-import android.view.KeyEvent
-
 import android.view.View
-import android.support.v7.widget.*
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.Spinner
 import android.widget.Toast
+import kotlinx.android.synthetic.main.activity_main.*
 import ru.vegax.xavier.serp.R
 import ru.vegax.xavier.serp.adapters.HotelAdapter
-import ru.vegax.xavier.serp.models.*
-import android.widget.AdapterView
-import android.widget.AdapterView.OnItemSelectedListener
+import ru.vegax.xavier.serp.layout.CenterZoomLayoutManager
+import ru.vegax.xavier.serp.main.MainActivityViewModel.Companion.NO_FILTER
+import ru.vegax.xavier.serp.main.MainActivityViewModel.LoadingStatus.LOADING
+import ru.vegax.xavier.serp.main.MainActivityViewModel.LoadingStatus.NOT_LOADING
+import ru.vegax.xavier.serp.models.Company
+import ru.vegax.xavier.serp.models.Flight
+import ru.vegax.xavier.serp.models.Hotel
+import ru.vegax.xavier.serp.models.SelectedFlight
 
-
-
-
-
-class MainActivity : AppCompatActivity(), OnDataListener, SwipeRefreshLayout.OnRefreshListener,
-        HotelAdapter.OnAdapterClickListener,FlightSelectFragment.FragmentInteractionListener {
-
-
+class MainActivity : AppCompatActivity(), SwipeRefreshLayout.OnRefreshListener,
+        FlightSelectFragment.FragmentInteractionListener, HotelAdapter.OnAdapterClickListener {
     private val TAG = "XavvMainActivity"
 
-    private lateinit var mAdapter: HotelAdapter
+    private val viewModel by lazy {
+        viewModel { MainActivityViewModel() }
+    }
 
-    private lateinit var mSwipeRefreshLayout: SwipeRefreshLayout
-
-    private lateinit var mainActivityViewModel: MainActivityViewModel
-
-    private var lastSelectedHotel: Hotel? = null
-    private var mToolbar: Toolbar? = null
-
-    private var mSpinner: Spinner? = null
+    lateinit var hotelAdapter: HotelAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d(TAG, "on Create")
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        Log.d(TAG, "on Create")
-
-        mToolbar = findViewById(R.id.toolbar)
-        mToolbar?.title = resources.getString(R.string.app_name)
-
-        mSwipeRefreshLayout = findViewById(R.id.swipe_container)
-        mSwipeRefreshLayout.setOnRefreshListener(this)
-        mSwipeRefreshLayout.isRefreshing = true
-
-
-
-        mainActivityViewModel = ViewModelProviders.of(this).get(MainActivityViewModel::class.java)
-        mainActivityViewModel.init(this) // set data listener
-
-        mAdapter = HotelAdapter(this, this)
-
-
-
+        swipe_container.setOnRefreshListener(this)
         initRecyclerView()
-
-
+        observeViewModel()
     }
 
-    private fun initSpinner() {
-        //spinner
-        mSpinner = this.findViewById(R.id.spinner)
-
-        val spinnerList = ArrayList<String>()
-        val companyIdList = ArrayList<Int>()
-        spinnerList.add(getString(R.string.filter)) // first word means no filtration
-        companyIdList.add(-1)
-
-        val companiesList = mainActivityViewModel.companies?.companies
-        val iterator = companiesList?.iterator()
-        if (iterator !=null)
-        for(company in iterator){
-            company.name?.let { spinnerList.add(it) }
-            companyIdList.add(company.id)
-        }
-        val myAdapter: ArrayAdapter<String> = ArrayAdapter(this, R.layout.custom_spinner_item,
-                spinnerList)
-        myAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        mSpinner?.adapter = myAdapter
-
-        mSpinner?.onItemSelectedListener = object : OnItemSelectedListener {
-            override fun onItemSelected(parentView: AdapterView<*>, selectedItemView: View, position: Int, id: Long) {
-
-                filterBy(companyIdList[position])
+    private fun observeViewModel() {
+        viewModel.adapterData.observe(this, Observer {
+            if (it != null) {
+                hotelAdapter.setDataLists(it)
 
             }
-
-            override fun onNothingSelected(parentView: AdapterView<*>) {
-                // do nothing
-            }
-
-        }
-    }
-
-    private fun filterBy(companyId: Int) {
-        val list = mainActivityViewModel.getFilteredAdapterData(companyId)
-        mAdapter.setDataLists(list)
-    }
-
-    override fun onClick(position: Int) {
-        val adapterData = mainActivityViewModel.adapterList[position]
-
-        val nOfHotels = adapterData.options
-        if (nOfHotels > 0) {
-            if (nOfHotels == 1) {
-                val companies = mainActivityViewModel.companies?.companies
-                if (companies != null){
-
-                    Toast.makeText(this@MainActivity, "Выбран отель \"${adapterData.hotel.name}\" через ${companies.get(adapterData.flights[0].companyId).name} за ${adapterData.flights[0].price +adapterData.hotel.price }р", Toast.LENGTH_SHORT).show()
+        })
+        viewModel.loadingStatus.observe(this, Observer {
+            when (it) {
+                LOADING -> {
+                    swipe_container.isRefreshing = true
                 }
-            } else {
-                lastSelectedHotel = adapterData.hotel
-                val deviceSelect = FlightSelectFragment().newInstance(adapterData.hotel.id, mainActivityViewModel.hotelsList?.hotels as ArrayList<Hotel>,
-                        adapterData.flights, mainActivityViewModel.companies?.companies as ArrayList<Company>)
-
-                deviceSelect.show(supportFragmentManager, "selectDialog")
+                NOT_LOADING -> {
+                    initSpinner()
+                    swipe_container.isRefreshing = false
+                }
             }
-        }
+        })
+
+        viewModel.loadErr.observe(this, Observer {
+            swipe_container.isRefreshing = false
+            toast(getString(R.string.cannot_donwload))
+        })
     }
 
     private fun initRecyclerView() {
-        //Initialize the RecyclerView
-        val recyclerView = findViewById<RecyclerView>(R.id.recyclerVUsers)
-
-        val layoutManager = LinearLayoutManager(this)
+        val layoutManager = CenterZoomLayoutManager(this)
         layoutManager.orientation = LinearLayoutManager.VERTICAL
-        //Set the Layout Manager
-        recyclerView?.layoutManager = layoutManager
-        recyclerView?.adapter = mAdapter
-        recyclerView?.addItemDecoration(VerticalSpaceItemDecoration(40))
-        recyclerView?.setHasFixedSize(true)
-    }
-    override fun onFragmentResult(selectedFlight: SelectedFlight) {
-        if (lastSelectedHotel != null){
-            Toast.makeText(this@MainActivity, "Выбран отель \"${lastSelectedHotel!!.name}\" через ${selectedFlight.company} за ${selectedFlight.price}р", Toast.LENGTH_SHORT).show()
+        recyclerVUsers.layoutManager = layoutManager
+        hotelAdapter = HotelAdapter(this, this)
+        recyclerVUsers.adapter = hotelAdapter
+        recyclerVUsers.addItemDecoration(VerticalSpaceItemDecoration(40))
+        recyclerVUsers.setHasFixedSize(true)
+        if (hotelAdapter.mHotelsData.size == 0) {
+            onRefresh()
         }
     }
 
+    private fun initSpinner() {
+        val spinnerList = ArrayList<String>()
+        val companyIdList = ArrayList<Int>()
+        spinnerList.add(getString(R.string.filter)) // first word means no filtration
+        companyIdList.add(NO_FILTER)
+
+        val companiesList = viewModel.detailsModel?.companies
+        if (companiesList != null) {
+            companyIdList.addAll(companiesList.map { company -> company.id })
+            spinnerList.addAll(companiesList.map { company -> company.name ?: "" })
+        }
+
+        val myAdapter: ArrayAdapter<String> = ArrayAdapter(this, R.layout.custom_spinner_item,
+                spinnerList)
+        myAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinner.adapter = myAdapter
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parentView: AdapterView<*>, selectedItemView: View, position: Int, id: Long) {
+                viewModel.getHotelResults(companyIdList[position])
+            }
+
+            override fun onNothingSelected(parentView: AdapterView<*>) {
+            }
+        }
+    }
 
     override fun onRefresh() {
-        refreshData()
+        viewModel.loadData(NO_FILTER)
     }
 
-    private fun refreshData() {
-        Log.d(TAG, "refresh")
-        mainActivityViewModel.getData()
-
-    }
-
-    override fun onNewData(hotelsList: HotelsList?, flightList: FlightList?, companies: Companies?) {
-        Log.d(TAG, "new Data")
-        mSwipeRefreshLayout.isRefreshing = false
-        val list = mainActivityViewModel.adapterList
-        mAdapter.setDataLists(list)
-        initSpinner()
-    }
-
-    override fun onBackPressed() {
-        moveTaskToBack(true)
+    override fun onFragmentResult(currHotel: Hotel, selectedFlight: SelectedFlight) {
+            Toast.makeText(this@MainActivity, "Выбран отель \"${currHotel.name}\" через ${selectedFlight.company.name} за ${selectedFlight.price}р", Toast.LENGTH_SHORT).show()
     }
 
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            moveTaskToBack(true)
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-    override fun onError(error: String) {
-        mSwipeRefreshLayout.isRefreshing = false
-        Toast.makeText(applicationContext, error, Toast.LENGTH_SHORT).show()
+    override fun onClick(position: Int) {
+        val deviceSelect = FlightSelectFragment().newInstance(viewModel.adapterData.value!![position].hotel,
+                viewModel.adapterData.value!![position].flights, viewModel.detailsModel?.companies as ArrayList<Company>)
+
+        deviceSelect.show(supportFragmentManager, "selectDialog")
     }
 
     inner class VerticalSpaceItemDecoration internal constructor(private val verticalSpaceHeight: Int) : RecyclerView.ItemDecoration() { // separation between cards
@@ -190,5 +130,6 @@ class MainActivity : AppCompatActivity(), OnDataListener, SwipeRefreshLayout.OnR
                                     state: RecyclerView.State) {
             outRect.bottom = verticalSpaceHeight
         }
+
     }
 }

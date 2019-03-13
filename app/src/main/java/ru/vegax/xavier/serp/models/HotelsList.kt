@@ -7,6 +7,6 @@ class HotelsList {
 
     @SerializedName("hotels")
     @Expose
-    var hotels: List<Hotel>? = null
+    lateinit var hotels: List<Hotel>
 
 }

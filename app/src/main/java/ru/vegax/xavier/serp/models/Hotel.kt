@@ -12,17 +12,17 @@ class Hotel() : Parcelable {
     var id: Int = 0
     @SerializedName("flights")
     @Expose
-    var flightIds: List<Int>? = null
+    lateinit var flightIds: List<Int>
     @SerializedName("name")
     @Expose
-    var name: String? = null
+    lateinit var name: String
     @SerializedName("price")
     @Expose
     var price: Int = 0
 
     constructor(parcel: Parcel) : this() {
         id = parcel.readInt()
-        name = parcel.readString()
+        name = parcel.readString()?:""
         price = parcel.readInt()
     }
 
