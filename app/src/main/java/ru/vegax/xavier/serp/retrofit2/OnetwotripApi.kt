@@ -1,19 +1,21 @@
 package ru.vegax.xavier.serp.retrofit2
 
-import retrofit2.Call
+import io.reactivex.Observable
+import io.reactivex.Single
 import retrofit2.http.GET
+
 import ru.vegax.xavier.serp.models.Companies
 import ru.vegax.xavier.serp.models.FlightList
 import ru.vegax.xavier.serp.models.HotelsList
 
-interface OnetwotripApi {
+interface OneTwoTripApi {
 
-    @get:GET("zqxvw")
-    val flightList: Call<FlightList>
+    @GET("zqxvw")
+    fun flightList(): Single<FlightList>
 
-    @get:GET("12q3ws")
-    val hotelsList: Call<HotelsList>
+    @GET("12q3ws")
+    fun hotelsList(): Single<HotelsList>
 
-    @get:GET("8d024")
-    val companies: Call<Companies>
+    @GET("8d024")
+    fun companies(): Single<Companies>
 }
